@@ -1,8 +1,11 @@
 <script lang="ts">
-  import type { Connection } from "./Interfaces";
-
-  import { onMount, tick } from "svelte";
-  import axios, { AxiosRequestConfig, AxiosResponse, Method } from "axios";
+  import { tick } from "svelte";
+  import {
+    createQlikTask,
+    deleteQlikTask,
+    updateQlikTask,
+    getQlikTasks,
+  } from "./helpers";
 
   import Header from "./components/Header.svelte";
   import LeftMenu from "./components/LeftMenu.svelte";
@@ -11,23 +14,6 @@
 
   let selectedConnection;
   let isNew = false;
-
-  async function createConnection(connectionData) {
-    await makeRequest("POST", "externalprogramtask", connectionData);
-  }
-
-  async function updateConnection(connectionData) {
-    await makeRequest(
-      "PUT",
-      `externalprogramtask/${connectionData.id}`,
-      connectionData
-    );
-  }
-
-  async function getConnections(): Promise<Connection[]> {
-    let response = await makeRequest("GET", "externalprogramtask/full");
-    return response.data as Connection[];
-  }
 
   async function selectConnection(ev) {
     isNew = false;
@@ -61,49 +47,26 @@
   }
 
   async function save(ev) {
-    if (ev.detail.isNew) await createConnection(ev.detail.selectedConnection);
+    if (ev.detail.isNew) await createQlikTask(ev.detail.selectedConnection);
 
-    if (!ev.detail.isNew) await updateConnection(ev.detail.selectedConnection);
+    if (!ev.detail.isNew) await updateQlikTask(ev.detail.selectedConnection);
 
-    connections1 = getConnections();
+    externalTasks = getQlikTasks();
     isNew = false;
     selectedConnection = "";
   }
 
   async function deleteConnection(ev) {
-    await makeRequest("DELETE", `externalprogramtask/${ev.detail.id}`);
-    connections1 = getConnections();
+    await deleteQlikTask(ev.detail.id);
+    externalTasks = getQlikTasks();
     isNew = false;
     selectedConnection = "";
   }
 
-  $: connections1 = getConnections();
-
-  onMount(async () => {});
-
-  export async function makeRequest(
-    method: Method,
-    path: string,
-    data?: any
-  ): Promise<AxiosResponse> {
-    let config: AxiosRequestConfig = {
-      method: method,
-      url: `https://SENSE_HOST/jwt/qrs/${path}?xrfkey=123456789ABCDEFG`,
-      headers: {
-        authorization: `Bearer SENSE_JWT`,
-        "x-Qlik-Xrfkey": "123456789ABCDEFG",
-      },
-    };
-
-    if (data) config.data = data;
-
-    const res = await axios(config);
-
-    return res;
-  }
+  $: externalTasks = getQlikTasks();
 </script>
 
-{#await connections1}
+{#await externalTasks}
   <div class="loader">
     <Loader />
   </div>
