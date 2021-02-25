@@ -11,9 +11,10 @@
   .title {
     text-transform: uppercase;
     display: flex;
-    justify-content: center;
+    justify-content: start;
     align-items: center;
     font-size: 26px;
     font-weight: bold;
+    padding-left: 10px;
   }
 </style>

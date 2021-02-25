@@ -1,6 +1,7 @@
 import axios from "axios";
 
 export const updateQlikTask = async function (connectionData) {
+  connectionData.modifiedDate = new Date().toISOString();
   await makeRequest(
     "PUT",
     `externalprogramtask/${connectionData.id}`,

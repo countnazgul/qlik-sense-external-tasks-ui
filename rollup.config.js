@@ -3,10 +3,10 @@ import commonjs from "@rollup/plugin-commonjs";
 import resolve from "@rollup/plugin-node-resolve";
 import livereload from "rollup-plugin-livereload";
 import { terser } from "rollup-plugin-terser";
-import sveltePreprocess from "svelte-preprocess";
+// import sveltePreprocess from "svelte-preprocess";
 import typescript from "@rollup/plugin-typescript";
 import css from "rollup-plugin-css-only";
-const { reactivePreprocess } = require("svelte-reactive-preprocessor");
+// const { reactivePreprocess } = require("svelte-reactive-preprocessor");
 import dotenv from "dotenv";
 import replace from "@rollup/plugin-replace";
 import json from "@rollup/plugin-json";
@@ -49,10 +49,10 @@ export default {
   },
   plugins: [
     svelte({
-      preprocess: [
-        sveltePreprocess({ sourceMap: !production }),
-        reactivePreprocess(),
-      ],
+      // preprocess: [
+      // sveltePreprocess({ sourceMap: !production }),
+      // reactivePreprocess(),
+      // ],
       compilerOptions: {
         // enable run-time checks when not in production
         dev: !production,
@@ -79,10 +79,13 @@ export default {
       inlineSources: !production,
     }),
 
-    replace({
-      SENSE_HOST: process.env.SVELTE_APP_SENSE_HOST,
-      SENSE_JWT: process.env.SVELTE_APP_JWT,
-    }),
+    replace(
+      {
+        SENSE_HOST: process.env.SVELTE_APP_SENSE_HOST,
+        SENSE_JWT: process.env.SVELTE_APP_JWT,
+      },
+      { preventAssignment: true }
+    ),
 
     // In dev mode, call `npm run start` once
     // the bundle has been generated

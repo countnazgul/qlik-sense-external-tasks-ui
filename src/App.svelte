@@ -1,131 +1,169 @@
 <script lang="ts">
-  import { tick } from "svelte";
-  import {
-    createQlikTask,
-    deleteQlikTask,
-    updateQlikTask,
-    getQlikTasks,
-  } from "./helpers";
+  import { onMount, tick, setContext } from "svelte";
+  import { writable } from "svelte/store";
+  import { deleteQlikTask, getQlikTasks } from "./helpers";
 
   import Header from "./components/Header.svelte";
-  import LeftMenu from "./components/LeftMenu.svelte";
-  import MainContent from "./components/MainContent.svelte";
+  import Footer from "./components/Footer.svelte";
+  import Tasks from "./components/Tasks.svelte";
   import Loader from "./components/Loader.svelte";
+  import Switch from "./components/Switch.svelte";
 
-  let selectedConnection;
-  let isNew = false;
+  let loaded = false;
 
-  async function selectConnection(ev) {
-    isNew = false;
+  let state = writable("light");
+  setContext("ExternalTasks", {
+    deleteTask: (index) => {
+      let t = externalTasks[index];
+      if (t.id) deleteQlikTask(t.id);
+      if (!t.id) externalTasks = externalTasks.filter((_, i) => index !== i);
+    },
+    changeTheme: () => {
+      toggle();
+    },
+  });
 
-    await tick();
+  setContext("Theme", state);
 
-    if (!selectedConnection) {
-      selectedConnection = ev.detail;
-      return;
-    }
+  $: externalTasks = [];
 
-    if (selectedConnection.id == ev.detail.id) {
-      selectedConnection = "";
-      return;
-    }
+  async function createTask() {
+    let emptyTask = {
+      name: "",
+      enabled: true,
+      maxRetries: 0,
+      parameters: "",
+      path: "",
+      taskSessionTimeout: 1400,
+      privileges: null,
+      qlikUser: null,
+      schemaPath: "ExternalProgramTask",
+      taskType: 1,
+      tags: [],
+      customProperties: [],
+    };
 
-    if (selectedConnection.id != ev.detail.id) {
-      selectedConnection = ev.detail;
-      return;
-    }
+    externalTasks = [...externalTasks, emptyTask];
   }
 
-  async function newConnection() {
-    isNew = true;
-    selectedConnection = "";
+  function toggle() {
+    state.update((t) => {
+      if (t == "light") return "dark";
+      if (t == "dark") return "light";
+    });
+    window.document.body.classList.toggle("dark-mode");
   }
 
-  function cancel() {
-    isNew = false;
-    selectedConnection = "";
-  }
+  onMount(async () => {
+    let rawData = await getQlikTasks();
+    externalTasks = rawData.sort((a, b) => a.name.localeCompare(b.name));
 
-  async function save(ev) {
-    if (ev.detail.isNew) await createQlikTask(ev.detail.selectedConnection);
-
-    if (!ev.detail.isNew) await updateQlikTask(ev.detail.selectedConnection);
-
-    externalTasks = getQlikTasks();
-    isNew = false;
-    selectedConnection = "";
-  }
-
-  async function deleteConnection(ev) {
-    await deleteQlikTask(ev.detail.id);
-    externalTasks = getQlikTasks();
-    isNew = false;
-    selectedConnection = "";
-  }
-
-  $: externalTasks = getQlikTasks();
+    loaded = true;
+  });
 </script>
 
-{#await externalTasks}
+{#if !loaded}
   <div class="loader">
     <Loader />
   </div>
-{:then connections}
+{:else}
   <div class="main">
     <div class="header">
       <Header />
     </div>
-    <div class="left-menu">
-      <LeftMenu
-        {connections}
-        on:selectConnection={selectConnection}
-        {selectedConnection}
-      />
+    <div class="tasks">
+      <div class="tasks-header">
+        Light <Switch on:change={toggle} /> Dark
+      </div>
+      <div class="tasks-list">
+        <Tasks tasks={externalTasks} />
+      </div>
     </div>
-    <div class="content">
-      <MainContent
-        {selectedConnection}
-        {isNew}
-        on:newConnection={newConnection}
-        on:cancel={cancel}
-        on:save={save}
-        on:delete={deleteConnection}
-      />
+    <div class="footer">
+      <Footer />
     </div>
   </div>
-{:catch error}
-  <p style="color: red">{error}</p>
-{/await}
+  <div class="fab" title="Add external task" on:click={createTask}>+</div>
+{/if}
 
 <style>
+  :global(body) {
+    /* background-color: #f2eee2; */
+    /* color: #0084f6; */
+    transition: background-color 0.3s;
+  }
+  :global(body.dark-mode) {
+    background-color: #1d3040;
+    color: #bfc2c7;
+  }
+
   .main {
     width: 100%;
     height: 100vh;
     display: grid;
-    grid-template-columns: 300px auto;
-    grid-template-rows: 50px auto;
+    grid-template-rows: 50px auto 40px;
+    overflow: hidden;
   }
 
   .header {
-    grid-column: 1 / span 2;
     grid-row: 1;
   }
 
-  .left-menu {
-    grid-column: 1;
-    grid-row: 2;
+  .footer {
+    padding: 5px 5px 5px 20px;
+    /* padding-right: 20px; */
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
   }
 
-  .content {
-    grid-column: 2;
+  .tasks {
     grid-row: 2;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 30px auto;
   }
 
+  .tasks-header {
+    align-self: end;
+    justify-self: end;
+    margin-right: 20px;
+  }
+
+  .tasks-list {
+    overflow: auto;
+  }
   .loader {
     width: 100%;
     height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
+  }
+
+  .fab {
+    cursor: pointer;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    box-shadow: 0 6px 10px 0 #666;
+    transition: all 0.1s ease-in-out;
+
+    font-size: 35px;
+    font-family: Arial, Helvetica, sans-serif;
+    text-align: center;
+    line-height: 50px;
+
+    position: fixed;
+    z-index: 1000;
+    right: 50px;
+    bottom: 50px;
+    color: white;
+    background-color: #106cc8;
+  }
+
+  .fab:hover {
+    box-shadow: 0 6px 14px 0 #666;
+    transform: scale(1.05);
   }
 </style>
